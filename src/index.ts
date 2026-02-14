@@ -49,3 +49,9 @@ export {
   instanceDestroyed,
   snapshotError,
 } from './errors.js';
+
+// ---------------------------------------------------------------------------
+// Sandbox Factory
+// ---------------------------------------------------------------------------
+
+export { createWasmSandbox } from './sandbox.js';

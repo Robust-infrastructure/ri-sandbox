@@ -4,13 +4,13 @@ Deterministic WASM execution with resource limits, isolation, and snapshot/resto
 
 ## Status
 
-**v0.2.0 — Core Types & Configuration**
+**v0.3.0 — WASM Module Loading & Instantiation**
 
 | Milestone | Status |
 |-----------|--------|
 | M1: Project Scaffolding | Complete |
 | M2: Core Types & Configuration | Complete |
-| M3: WASM Module Loading & Instantiation | Not Started |
+| M3: WASM Module Loading & Instantiation | Complete |
 | M4: Execution Engine & Host Function Bridge | Not Started |
 | M5: Gas Metering & Resource Limits | Not Started |
 | M6: Determinism Enforcement | Not Started |
@@ -37,7 +37,50 @@ See [ROADMAP.md](ROADMAP.md) for the full development plan.
 npm install ri-sandbox
 ```
 
+## Quick Start
+
+```typescript
+import { createWasmSandbox } from 'ri-sandbox';
+
+// 1. Create a sandbox factory
+const sandbox = createWasmSandbox();
+
+// 2. Create an instance with resource limits
+const instance = sandbox.create({
+  maxMemoryBytes: 1_048_576,     // 1 MB
+  maxGas: 500_000,
+  maxExecutionMs: 30,
+  hostFunctions: {},
+  deterministicSeed: 42,
+  eventTimestamp: 1700000000000,
+});
+// instance.id → "sandbox-0", instance.status → "created"
+
+// 3. Load a WASM module
+const wasmBytes = new Uint8Array(/* ... your .wasm file ... */);
+await sandbox.load(instance, wasmBytes);
+// instance status is now "loaded"
+
+// 4. Check resource metrics
+const metrics = sandbox.getMetrics(instance);
+// metrics.memoryUsedBytes, metrics.memoryLimitBytes, ...
+
+// 5. Clean up
+sandbox.destroy(instance);
+// instance status is now "destroyed"
+```
+
 ## API
+
+### `createWasmSandbox(): WasmSandbox`
+
+Factory function — creates a new `WasmSandbox` with its own instance registry.
+
+```typescript
+import { createWasmSandbox } from 'ri-sandbox';
+
+const sandbox = createWasmSandbox();
+```
 
 ### `WasmSandbox`
 
