@@ -4,12 +4,12 @@ Deterministic WASM execution with resource limits, isolation, and snapshot/resto
 
 ## Status
 
-**v0.1.0 — Project Scaffolding**
+**v0.2.0 — Core Types & Configuration**
 
 | Milestone | Status |
 |-----------|--------|
 | M1: Project Scaffolding | Complete |
-| M2: Core Types & Configuration | Not Started |
+| M2: Core Types & Configuration | Complete |
 | M3: WASM Module Loading & Instantiation | Not Started |
 | M4: Execution Engine & Host Function Bridge | Not Started |
 | M5: Gas Metering & Resource Limits | Not Started |
@@ -31,7 +31,17 @@ See [ROADMAP.md](ROADMAP.md) for the full development plan.
 - **Host function injection** — controlled WASM-to-host bridge
 - **Gas metering enforcement** — computation budget per execution
 
-## Planned API
+## Install
+
+```bash
+npm install ri-sandbox
+```
+
+## API
+
+### `WasmSandbox`
+
+The main sandbox interface — all 7 methods for WASM execution lifecycle.
 
 ```typescript
 interface WasmSandbox {
@@ -43,49 +53,142 @@ interface WasmSandbox {
   restore(instance: SandboxInstance, snapshot: Uint8Array): void;
   getMetrics(instance: SandboxInstance): ResourceMetrics;
 }
+```
 
+### `SandboxConfig`
+
+Configuration for creating a sandbox instance.
+
+```typescript
 interface SandboxConfig {
-  maxMemoryBytes: number;          // Hard memory limit (default: 16 MB)
-  maxGas: number;                  // Computation budget per execution (default: 1,000,000)
-  maxExecutionMs: number;          // Wall-clock timeout (default: 50ms)
-  hostFunctions: HostFunctionMap;  // Injected bridge functions
-  deterministicSeed: number;       // PRNG seed for deterministic random
-  eventTimestamp: number;          // Injected "current time"
+  readonly maxMemoryBytes: number;          // Hard memory limit (default: 16,777,216 — 16 MB)
+  readonly maxGas: number;                  // Computation budget per execution (default: 1,000,000)
+  readonly maxExecutionMs: number;          // Wall-clock timeout (default: 50ms)
+  readonly hostFunctions: HostFunctionMap;  // Injected bridge functions (default: {})
+  readonly deterministicSeed: number;       // PRNG seed (default: 0)
+  readonly eventTimestamp: number;          // Injected "current time" (ms since epoch)
 }
 ```
 
-## Install
+Default constants:
 
-```bash
-npm install ri-sandbox
+| Constant | Value |
+|----------|-------|
+| `DEFAULT_MAX_MEMORY_BYTES` | 16,777,216 (16 MB) |
+| `DEFAULT_MAX_GAS` | 1,000,000 |
+| `DEFAULT_MAX_EXECUTION_MS` | 50 |
+| `DEFAULT_DETERMINISTIC_SEED` | 0 |
+
+### `SandboxInstance`
+
+An isolated WASM execution environment.
+
+```typescript
+interface SandboxInstance {
+  readonly id: string;
+  readonly config: Readonly<SandboxConfig>;
+  readonly status: SandboxStatus;
+  readonly metrics: ResourceMetrics;
+}
+
+type SandboxStatus = 'created' | 'loaded' | 'running' | 'suspended' | 'destroyed';
+```
+
+### `ExecutionResult`
+
+Discriminated union returned by `execute()`.
+
+```typescript
+// Success
+{ ok: true; value: unknown; metrics: ResourceMetrics; gasUsed: number; durationMs: number }
+
+// Failure
+{ ok: false; error: SandboxError }
+```
+
+### `ResourceMetrics`
+
+Current resource usage for a sandbox instance.
+
+```typescript
+interface ResourceMetrics {
+  readonly memoryUsedBytes: number;
+  readonly memoryLimitBytes: number;
+  readonly gasUsed: number;
+  readonly gasLimit: number;
+  readonly executionMs: number;
+  readonly executionLimitMs: number;
+}
+```
+
+### `HostFunction` & `HostFunctionMap`
+
+Host functions injected from the caller into WASM.
+
+```typescript
+interface HostFunction {
+  readonly name: string;
+  readonly params: readonly WasmValueType[];
+  readonly results: readonly WasmValueType[];
+  readonly handler: (...args: readonly number[]) => number | undefined;
+}
+
+type HostFunctionMap = Readonly<Record<string, HostFunction>>;
+type WasmValueType = 'i32' | 'i64' | 'f32' | 'f64';
+```
+
+### `SandboxError`
+
+Discriminated union with 8 error codes:
+
+| Code | Fields |
+|------|--------|
+| `GAS_EXHAUSTED` | `gasUsed`, `gasLimit` |
+| `MEMORY_EXCEEDED` | `memoryUsed`, `memoryLimit` |
+| `TIMEOUT` | `elapsedMs`, `limitMs` |
+| `WASM_TRAP` | `trapKind`, `message` |
+| `INVALID_MODULE` | `reason` |
+| `HOST_FUNCTION_ERROR` | `functionName`, `message` |
+| `INSTANCE_DESTROYED` | `instanceId` |
+| `SNAPSHOT_ERROR` | `reason` |
+
+Error factory functions: `gasExhausted()`, `memoryExceeded()`, `timeout()`, `wasmTrap()`, `invalidModule()`, `hostFunctionError()`, `instanceDestroyed()`, `snapshotError()`.
+
+### `MemoryPressureLevel`
+
+System-wide memory pressure level (percentage of available memory).
+
+```typescript
+type MemoryPressureLevel = 'NORMAL' | 'WARNING' | 'PRESSURE' | 'CRITICAL' | 'OOM';
+```
+
+| Level | Threshold |
+|-------|-----------|
+| NORMAL | < 70% |
+| WARNING | 70–85% |
+| PRESSURE | 85–95% |
+| CRITICAL | > 95% |
+| OOM | Should never happen |
+
+### `Result<T, E>`
+
+Generic discriminated union for fallible operations.
+
+```typescript
+type Result<T, E> = { ok: true; value: T } | { ok: false; error: E };
 ```
 
 ## Development
 
 ```bash
-# Install dependencies
-npm install
-
-# Type check
-npm run typecheck
-
-# Run tests
-npm run test
-
-# Run tests in watch mode
-npm run test:watch
-
-# Run tests with coverage
-npm run test:coverage
-
-# Lint
-npm run lint
-
-# Format
-npm run format
-
-# Build
-npm run build
+npm install          # Install dependencies
+npm run typecheck    # Type check
+npm run test         # Run tests
+npm run test:watch   # Run tests in watch mode
+npm run test:coverage # Run tests with coverage
+npm run lint         # Lint
+npm run format       # Format
+npm run build        # Build
 ```
 
 ## Determinism Guarantees

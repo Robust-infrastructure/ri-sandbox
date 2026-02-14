@@ -45,7 +45,7 @@ Deterministic WASM execution with resource limits, isolation, and snapshot/resto
 
 ---
 
-## M2: Core Types & Configuration (Status: NOT STARTED)
+## M2: Core Types & Configuration (Status: COMPLETE)
 
 **Goal**: All public types defined — the complete API contract before any implementation.
 
@@ -53,36 +53,36 @@ Deterministic WASM execution with resource limits, isolation, and snapshot/resto
 
 ### Tasks
 
-- [ ] Define `SandboxConfig` interface:
+- [x] Define `SandboxConfig` interface:
     - `maxMemoryBytes` (number, default 16_777_216 — 16 MB) — hard memory limit for the WASM instance
     - `maxGas` (number, default 1_000_000) — computation budget per execution (instruction count)
     - `maxExecutionMs` (number, default 50) — wall-clock timeout
     - `hostFunctions` (HostFunctionMap, default {}) — injected bridge functions
     - `deterministicSeed` (number, default 0) — PRNG seed for deterministic random
     - `eventTimestamp` (number, default Date.now() at creation) — injected "current time" (milliseconds since epoch)
-- [ ] Define `HostFunctionMap` type — `Record<string, HostFunction>`
-- [ ] Define `HostFunction` interface:
+- [x] Define `HostFunctionMap` type — `Record<string, HostFunction>`
+- [x] Define `HostFunction` interface:
     - `name` (string) — function name as seen from WASM
     - `params` (WasmValueType[]) — parameter types
     - `results` (WasmValueType[]) — return types
-    - `handler` (...args: number[]) => number | void — the actual implementation
-- [ ] Define `WasmValueType` union — `'i32' | 'i64' | 'f32' | 'f64'`
-- [ ] Define `SandboxInstance` interface:
+    - `handler` (...args: number[]) => number | undefined — the actual implementation
+- [x] Define `WasmValueType` union — `'i32' | 'i64' | 'f32' | 'f64'`
+- [x] Define `SandboxInstance` interface:
     - `id` (string) — unique instance identifier
     - `config` (Readonly<SandboxConfig>) — frozen configuration
     - `status` ('created' | 'loaded' | 'running' | 'suspended' | 'destroyed')
     - `metrics` (ResourceMetrics) — current resource usage
-- [ ] Define `ExecutionResult` type:
+- [x] Define `ExecutionResult` type:
     - `{ ok: true; value: unknown; metrics: ResourceMetrics; gasUsed: number; durationMs: number }`
     - `{ ok: false; error: SandboxError }`
-- [ ] Define `ResourceMetrics` interface:
+- [x] Define `ResourceMetrics` interface:
     - `memoryUsedBytes` (number) — current WASM linear memory usage
     - `memoryLimitBytes` (number) — configured limit
     - `gasUsed` (number) — instructions executed so far
     - `gasLimit` (number) — configured budget
     - `executionMs` (number) — wall-clock time elapsed
     - `executionLimitMs` (number) — configured timeout
-- [ ] Define `SandboxError` discriminated union:
+- [x] Define `SandboxError` discriminated union:
     - `GAS_EXHAUSTED` — `{ gasUsed: number; gasLimit: number }`
     - `MEMORY_EXCEEDED` — `{ memoryUsed: number; memoryLimit: number }`
     - `TIMEOUT` — `{ elapsedMs: number; limitMs: number }`
@@ -91,7 +91,7 @@ Deterministic WASM execution with resource limits, isolation, and snapshot/resto
     - `HOST_FUNCTION_ERROR` — `{ functionName: string; message: string }`
     - `INSTANCE_DESTROYED` — `{ instanceId: string }`
     - `SNAPSHOT_ERROR` — `{ reason: string }`
-- [ ] Define `WasmSandbox` interface — all 7 methods:
+- [x] Define `WasmSandbox` interface — all 7 methods:
     - `create(config: SandboxConfig): SandboxInstance`
     - `load(instance: SandboxInstance, module: Uint8Array): Promise<void>`
     - `execute(instance: SandboxInstance, action: string, payload: unknown): ExecutionResult`
@@ -99,18 +99,18 @@ Deterministic WASM execution with resource limits, isolation, and snapshot/resto
     - `snapshot(instance: SandboxInstance): Uint8Array`
     - `restore(instance: SandboxInstance, snapshot: Uint8Array): void`
     - `getMetrics(instance: SandboxInstance): ResourceMetrics`
-- [ ] Define `Result<T, E>` type — `{ ok: true; value: T } | { ok: false; error: E }`
-- [ ] Write type-level tests — verify types compile, discriminated unions narrow
-- [ ] Export all types from `src/index.ts`
-- [ ] Update `README.md` with full type documentation
+- [x] Define `Result<T, E>` type — `{ ok: true; value: T } | { ok: false; error: E }`
+- [x] Write type-level tests — verify types compile, discriminated unions narrow
+- [x] Export all types from `src/index.ts`
+- [x] Update `README.md` with full type documentation
 
 ### Done When
 
-- [ ] All public types are defined and exported
-- [ ] `npx tsc --noEmit` passes — types are valid TypeScript
-- [ ] Type tests verify discriminated union narrowing
-- [ ] `npx tsup` produces `.d.ts` files with all types
-- [ ] README documents every public type
+- [x] All public types are defined and exported
+- [x] `npx tsc --noEmit` passes — types are valid TypeScript
+- [x] Type tests verify discriminated union narrowing
+- [x] `npx tsup` produces `.d.ts` files with all types
+- [x] README documents every public type
 
 ---
 
