@@ -18,6 +18,8 @@ import { loadModule } from './loader/module-loader.js';
 import { instantiate } from './loader/instantiator.js';
 import { execute as executeAction } from './execution/executor.js';
 import { validateModuleImports } from './determinism/isolation.js';
+import { createSnapshot } from './snapshot/serializer.js';
+import { restoreSnapshot } from './snapshot/deserializer.js';
 
 /**
  * Create a new `WasmSandbox` — the main entry point for the library.
@@ -98,14 +100,25 @@ export function createWasmSandbox(): WasmSandbox {
       state.status = 'destroyed';
     },
 
-    snapshot(_instance: SandboxInstance): Uint8Array {
-      // Stub — implemented in M7
-      throw new Error('snapshot() not yet implemented — see M7');
+    snapshot(instance: SandboxInstance): Uint8Array {
+      const state = requireState(instance);
+      const result = createSnapshot(state);
+      if (!result.ok) {
+        throw new Error(
+          result.error.code === 'SNAPSHOT_ERROR' ? result.error.reason : result.error.code,
+        );
+      }
+      return result.value;
     },
 
-    restore(_instance: SandboxInstance, _snapshot: Uint8Array): void {
-      // Stub — implemented in M7
-      throw new Error('restore() not yet implemented — see M7');
+    restore(instance: SandboxInstance, snapshotData: Uint8Array): void {
+      const state = requireState(instance);
+      const result = restoreSnapshot(state, snapshotData);
+      if (!result.ok) {
+        throw new Error(
+          result.error.code === 'SNAPSHOT_ERROR' ? result.error.reason : result.error.code,
+        );
+      }
     },
 
     getMetrics(instance: SandboxInstance): ResourceMetrics {

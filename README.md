@@ -4,7 +4,7 @@ Deterministic WASM execution with resource limits, isolation, and snapshot/resto
 
 ## Status
 
-**v0.6.0 — Determinism Enforcement**
+**v0.7.0 — Snapshot & Restore**
 
 | Milestone | Status |
 |-----------|--------|
@@ -14,6 +14,7 @@ Deterministic WASM execution with resource limits, isolation, and snapshot/resto
 | M4: Execution Engine & Host Function Bridge | Complete |
 | M5: Gas Metering & Resource Limits | Complete |
 | M6: Determinism Enforcement | Complete |
+| M7: Snapshot & Restore | Complete |
 | M7: Snapshot & Restore | Not Started |
 | M8: Memory Pressure System | Not Started |
 | M9: Integration Tests & Performance Validation | Not Started |
@@ -31,6 +32,7 @@ See [ROADMAP.md](ROADMAP.md) for the full development plan.
 - **Host function injection** — controlled WASM-to-host bridge
 - **Gas metering enforcement** — computation budget per execution
 - **Determinism enforcement** — seeded PRNG, injected time, import isolation
+- **Snapshot/restore** — serialize and resume execution state
 
 ## Install
 
@@ -128,6 +130,26 @@ The `__get_time` and `__get_random` host functions are automatically injected in
 ```
 
 Import validation runs during `sandbox.load()` — modules with disallowed imports are rejected before instantiation with an `INVALID_MODULE` error.
+
+### Snapshot & Restore
+
+Sandbox state (WASM linear memory, PRNG position, gas counter) can be serialized to a binary snapshot and restored later:
+
+```typescript
+// Capture state
+const snap = sandbox.snapshot(instance);
+
+// Execute more actions...
+sandbox.execute(instance, 'processEvent', payload);
+
+// Rollback to captured state
+sandbox.restore(instance, snap);
+
+// Execution after restore is identical to execution after snapshot
+const result = sandbox.execute(instance, 'processEvent', payload);
+```
+
+Snapshot binary format: 5-byte header (`WSNP` magic + version), memory section (uint32 length + raw bytes), state section (uint32 length + JSON). Invalid or corrupted snapshots are rejected with `SNAPSHOT_ERROR`.
 
 ### `createWasmSandbox(): WasmSandbox`
 

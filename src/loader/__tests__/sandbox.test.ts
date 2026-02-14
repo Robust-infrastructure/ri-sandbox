@@ -157,16 +157,18 @@ describe('sandbox destroy', () => {
     }
   });
 
-  it('snapshot throws after destroy (stub — will be real in M7)', () => {
+  it('snapshot throws after destroy', () => {
     sandbox.destroy(instance);
-    expect(() => { sandbox.snapshot(instance); }).toThrow();
+    expect(() => { sandbox.snapshot(instance); }).toThrow('destroyed');
   });
 
-  it('snapshot throws on non-destroyed instance (stub — not yet implemented)', () => {
-    expect(() => { sandbox.snapshot(instance); }).toThrow('not yet implemented');
+  it('snapshot succeeds on loaded non-destroyed instance', () => {
+    const snap = sandbox.snapshot(instance);
+    expect(snap.byteLength).toBeGreaterThan(0);
   });
 
-  it('restore throws on non-destroyed instance (stub — not yet implemented)', () => {
-    expect(() => { sandbox.restore(instance, new Uint8Array(0)); }).toThrow('not yet implemented');
+  it('restore succeeds with a valid snapshot', () => {
+    const snap = sandbox.snapshot(instance);
+    expect(() => { sandbox.restore(instance, snap); }).not.toThrow();
   });
 });
