@@ -8,7 +8,7 @@ import {
   DEFAULT_MAX_EXECUTION_MS,
   DEFAULT_DETERMINISTIC_SEED,
 } from '../../types.js';
-import { memoryImportWasmModule } from './wasm-fixtures.js';
+import { memoryImportWasmModule, hostCallWasmModule } from './wasm-fixtures.js';
 
 function makeConfig(overrides?: Partial<SandboxConfig>): SandboxConfig {
   return {
@@ -51,6 +51,14 @@ describe('sandbox create & load', () => {
     const instance = sandbox.create(makeConfig());
     const badBytes = new Uint8Array([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]);
     await expect(sandbox.load(instance, badBytes)).rejects.toThrow('Failed to load WASM module');
+  });
+
+  it('load throws when instantiation fails due to missing imports', async () => {
+    // hostCallWasmModule expects env.double import, but no host functions configured
+    const instance = sandbox.create(makeConfig());
+    await expect(sandbox.load(instance, hostCallWasmModule())).rejects.toThrow(
+      'Failed to instantiate WASM module',
+    );
   });
 
   it('load throws for unknown instance', async () => {

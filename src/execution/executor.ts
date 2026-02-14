@@ -2,12 +2,18 @@
  * ri-sandbox — Execution engine
  *
  * Executes WASM exported functions with payload serialization,
- * host function bridging, and result extraction.
+ * host function bridging, resource enforcement, and result extraction.
  */
 
-import type { ExecutionResult, ResourceMetrics } from '../types.js';
-import { instanceDestroyed, wasmTrap } from '../errors.js';
+import type { ExecutionResult } from '../types.js';
+import { instanceDestroyed, wasmTrap, gasExhausted, timeout } from '../errors.js';
 import type { InternalSandboxState } from '../internal-types.js';
+import { GasExhaustedSignal } from '../resources/gas-meter.js';
+import { TimeoutSignal } from '../resources/timeout.js';
+import { createExecutionContext, buildResourceMetrics } from '../resources/resource-tracker.js';
+import type { ResourceTrackerConfig } from '../resources/resource-tracker.js';
+import type { TimerFn } from '../resources/timeout.js';
+import { checkMemoryLimit, createMemoryExceededError } from '../resources/memory-limiter.js';
 
 // ---------------------------------------------------------------------------
 // Payload Helpers
@@ -60,15 +66,19 @@ function toDirectArgs(payload: unknown): number[] {
  *   JSON-encoded, written to memory via an exported `__alloc` function,
  *   and the action is called with `(pointer, length)`.
  *
+ * Enforces gas, timeout, and memory limits via the execution context.
+ *
  * @param state - Internal mutable state for the sandbox instance.
  * @param action - Name of the exported WASM function to call.
  * @param payload - Arguments to pass to the function.
+ * @param timer - Optional timer function for timeout (injectable for testing).
  * @returns An ExecutionResult (ok with value + metrics, or error).
  */
 export function execute(
   state: InternalSandboxState,
   action: string,
   payload: unknown,
+  timer?: TimerFn,
 ): ExecutionResult {
   // Guard: destroyed instances
   if (state.status === 'destroyed') {
@@ -105,6 +115,19 @@ export function execute(
     };
   }
 
+  // Create execution context with resource limits
+  const trackerConfig: ResourceTrackerConfig = {
+    maxGas: state.config.maxGas,
+    maxExecutionMs: state.config.maxExecutionMs,
+    maxMemoryBytes: state.config.maxMemoryBytes,
+    ...(timer !== undefined ? { timer } : {}),
+  };
+  const ctx = createExecutionContext(trackerConfig);
+
+  // Set on state so host function wrappers can access it
+  state.executionContext = ctx;
+  ctx.timeoutChecker.start();
+
   // Set status to running
   const previousStatus = state.status;
   state.status = 'running';
@@ -121,12 +144,25 @@ export function execute(
       result = executeJsonPayload(state, exportedFn, action, payload);
     }
 
-    // Update metrics
-    const updatedMetrics = buildMetrics(state);
+    // Check memory after execution
+    const memCheck = checkMemoryLimit(state.wasmMemory, state.config.maxMemoryBytes);
+    if (memCheck.exceeded) {
+      state.status = previousStatus;
+      state.executionContext = null;
+      return { ok: false, error: createMemoryExceededError(memCheck) };
+    }
+
+    // Build metrics from execution context
+    const updatedMetrics = buildResourceMetrics(ctx, state.wasmMemory, {
+      maxGas: state.config.maxGas,
+      maxExecutionMs: state.config.maxExecutionMs,
+      maxMemoryBytes: state.config.maxMemoryBytes,
+    });
     state.metrics = updatedMetrics;
 
     // Restore status
     state.status = previousStatus;
+    state.executionContext = null;
 
     return {
       ok: true,
@@ -136,8 +172,33 @@ export function execute(
       durationMs: updatedMetrics.executionMs,
     };
   } catch (err: unknown) {
+    // Build metrics even on error (captures gasUsed, elapsedMs at failure point)
+    const errorMetrics = buildResourceMetrics(ctx, state.wasmMemory, {
+      maxGas: state.config.maxGas,
+      maxExecutionMs: state.config.maxExecutionMs,
+      maxMemoryBytes: state.config.maxMemoryBytes,
+    });
+    state.metrics = errorMetrics;
+
     // Restore status even on error
     state.status = previousStatus;
+    state.executionContext = null;
+
+    // Catch gas exhaustion
+    if (err instanceof GasExhaustedSignal) {
+      return {
+        ok: false,
+        error: gasExhausted(err.gasUsed, err.gasLimit),
+      };
+    }
+
+    // Catch timeout
+    if (err instanceof TimeoutSignal) {
+      return {
+        ok: false,
+        error: timeout(err.elapsedMs, err.limitMs),
+      };
+    }
 
     // WASM traps surface as errors
     const message = err instanceof Error ? err.message : String(err);
@@ -210,22 +271,4 @@ function executeJsonPayload(
 
 // ---------------------------------------------------------------------------
 // Metrics
-// ---------------------------------------------------------------------------
 
-/**
- * Build a ResourceMetrics snapshot from current internal state.
- * Gas metering is implemented in M5; for now gas values remain at their current state.
- */
-function buildMetrics(state: InternalSandboxState): ResourceMetrics {
-  const memoryUsedBytes =
-    state.wasmMemory !== null ? state.wasmMemory.buffer.byteLength : 0;
-
-  return {
-    memoryUsedBytes,
-    memoryLimitBytes: state.config.maxMemoryBytes,
-    gasUsed: state.metrics.gasUsed,
-    gasLimit: state.config.maxGas,
-    executionMs: state.metrics.executionMs,
-    executionLimitMs: state.config.maxExecutionMs,
-  };
-}

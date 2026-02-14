@@ -8,28 +8,15 @@
 import type {
   SandboxConfig,
   SandboxInstance,
-  ExecutionResult,
   ResourceMetrics,
   WasmSandbox,
+  ExecutionResult,
 } from './types.js';
-import { instanceDestroyed } from './errors.js';
 import type { InternalSandboxState } from './internal-types.js';
 import { createSandboxInstance } from './loader/instance-factory.js';
 import { loadModule } from './loader/module-loader.js';
 import { instantiate } from './loader/instantiator.js';
 import { execute as executeAction } from './execution/executor.js';
-
-/**
- * Get a fresh snapshot of the public SandboxInstance from internal state.
- */
-export function toPublicInstance(state: InternalSandboxState): SandboxInstance {
-  return {
-    id: state.id,
-    config: state.config,
-    status: state.status,
-    metrics: { ...state.metrics },
-  };
-}
 
 /**
  * Create a new `WasmSandbox` — the main entry point for the library.
@@ -135,17 +122,4 @@ export function createWasmSandbox(): WasmSandbox {
   };
 
   return sandbox;
-}
-
-/**
- * Check if a sandbox instance is destroyed. Returns the typed error if so.
- * Used by future M4+ methods to guard against destroyed instances.
- */
-export function checkDestroyed(
-  state: InternalSandboxState,
-): ExecutionResult | undefined {
-  if (state.status === 'destroyed') {
-    return { ok: false, error: instanceDestroyed(state.id) };
-  }
-  return undefined;
 }

@@ -47,6 +47,7 @@ export function createSandboxInstance(config: SandboxConfig): {
     wasmMemory,
     wasmModule: null,
     wasmInstance: null,
+    executionContext: null,
   };
 
   const instance: SandboxInstance = {

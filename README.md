@@ -4,7 +4,7 @@ Deterministic WASM execution with resource limits, isolation, and snapshot/resto
 
 ## Status
 
-**v0.4.0 — Execution Engine & Host Function Bridge**
+**v0.5.0 — Gas Metering & Resource Limits**
 
 | Milestone | Status |
 |-----------|--------|
@@ -12,7 +12,7 @@ Deterministic WASM execution with resource limits, isolation, and snapshot/resto
 | M2: Core Types & Configuration | Complete |
 | M3: WASM Module Loading & Instantiation | Complete |
 | M4: Execution Engine & Host Function Bridge | Complete |
-| M5: Gas Metering & Resource Limits | Not Started |
+| M5: Gas Metering & Resource Limits | Complete |
 | M6: Determinism Enforcement | Not Started |
 | M7: Snapshot & Restore | Not Started |
 | M8: Memory Pressure System | Not Started |
@@ -66,6 +66,8 @@ const result = sandbox.execute(instance, 'add', [3, 7]);
 if (result.ok) {
   console.log(result.value); // 10
   console.log(result.metrics);
+  console.log(result.gasUsed); // gas consumed during execution
+  console.log(result.durationMs); // wall-clock time in ms
 }
 
 // 5. Check resource metrics
@@ -78,6 +80,33 @@ sandbox.destroy(instance);
 ```
 
 ## API
+
+### Resource Enforcement
+
+The sandbox enforces three resource limits during execution:
+
+| Resource | Config | Error Code | Enforcement |
+|----------|--------|------------|-------------|
+| Gas (computation) | `maxGas` | `GAS_EXHAUSTED` | Consumed at host function call boundaries |
+| Memory | `maxMemoryBytes` | `MEMORY_EXCEEDED` | Checked after execution; `WebAssembly.Memory` maximum enforces hard limit |
+| Timeout | `maxExecutionMs` | `TIMEOUT` | Checked at host function call boundaries via injectable timer |
+
+```typescript
+const result = sandbox.execute(instance, 'expensive', payload);
+if (!result.ok) {
+  switch (result.error.code) {
+    case 'GAS_EXHAUSTED':
+      console.log(`Gas: ${result.error.gasUsed}/${result.error.gasLimit}`);
+      break;
+    case 'TIMEOUT':
+      console.log(`Timeout: ${result.error.elapsedMs}ms > ${result.error.limitMs}ms`);
+      break;
+    case 'MEMORY_EXCEEDED':
+      console.log(`Memory: ${result.error.memoryUsed}/${result.error.memoryLimit} bytes`);
+      break;
+  }
+}
+```
 
 ### `createWasmSandbox(): WasmSandbox`
 

@@ -5,7 +5,7 @@
  * wiring up host functions and memory.
  */
 
-import type { Result } from '../types.js';
+import type { Result, ResultErr } from '../types.js';
 import type { SandboxError } from '../errors.js';
 import { invalidModule, hostFunctionError } from '../errors.js';
 import type { InternalSandboxState } from '../internal-types.js';
@@ -26,10 +26,17 @@ function buildImportObject(
     envImports['memory'] = state.wasmMemory;
   }
 
-  // Inject host functions
+  // Inject host functions with gas/timeout interception
   for (const [key, hostFn] of Object.entries(state.config.hostFunctions)) {
     const fn = hostFn;
     envImports[key] = (...args: number[]): number | undefined => {
+      // Check gas and timeout before calling host function
+      const ctx = state.executionContext;
+      if (ctx !== null) {
+        ctx.gasMeter.consume(1);
+        ctx.timeoutChecker.check();
+      }
+
       try {
         return fn.handler(...args);
       } catch (err: unknown) {
@@ -77,29 +84,40 @@ export async function instantiate(
 
     return { ok: true, value: undefined };
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Unknown instantiation error';
-
-    // Detect missing imports
-    if (message.includes('import')) {
-      return {
-        ok: false,
-        error: invalidModule(`WASM instantiation failed — missing or incompatible imports: ${message}`),
-      };
-    }
-
-    // Detect host function errors
-    if (message.includes('Host function')) {
-      const fnMatch = /Host function '([^']+)'/.exec(message);
-      const fnName = fnMatch?.[1] ?? 'unknown';
-      return {
-        ok: false,
-        error: hostFunctionError(fnName, message),
-      };
-    }
-
-    return {
-      ok: false,
-      error: invalidModule(`WASM instantiation failed: ${message}`),
-    };
+    return classifyInstantiationError(err);
   }
 }
+
+/**
+ * Classify an instantiation error into the appropriate SandboxError.
+ *
+ * Examines the error message to determine:
+ * - Missing/incompatible imports → INVALID_MODULE
+ * - Host function failures → HOST_FUNCTION_ERROR
+ * - Other errors → generic INVALID_MODULE
+ */
+export function classifyInstantiationError(err: unknown): ResultErr<SandboxError> {
+  const message = err instanceof Error ? err.message : 'Unknown instantiation error';
+
+  // Detect missing imports
+  if (message.includes('import')) {
+    return {
+      ok: false,
+      error: invalidModule(`WASM instantiation failed — missing or incompatible imports: ${message}`),
+    };
+  }
+
+  // Detect host function errors
+  if (message.includes('Host function')) {
+    const fnMatch = /Host function '([^']+)'/.exec(message);
+    const fnName = fnMatch?.[1] ?? 'unknown';
+    return {
+      ok: false,
+      error: hostFunctionError(fnName, message),
+    };
+  }
+
+  return {
+    ok: false,
+    error: invalidModule(`WASM instantiation failed: ${message}`),
+  };}

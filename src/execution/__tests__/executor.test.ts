@@ -65,6 +65,7 @@ async function createLoadedState(
     wasmMemory: memory,
     wasmModule: module,
     wasmInstance: instance,
+    executionContext: null,
   };
 }
 

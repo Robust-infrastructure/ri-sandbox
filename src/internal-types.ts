@@ -6,6 +6,7 @@
  */
 
 import type { SandboxConfig, SandboxStatus, ResourceMetrics } from './types.js';
+import type { ExecutionContext } from './resources/resource-tracker.js';
 
 /** WASM page size in bytes (64 KB). */
 export const WASM_PAGE_SIZE = 65_536;
@@ -19,6 +20,8 @@ export interface InternalSandboxState {
   wasmMemory: WebAssembly.Memory | null;
   wasmModule: WebAssembly.Module | null;
   wasmInstance: WebAssembly.Instance | null;
+  /** Set per-execution by the executor; host function wrappers read this. */
+  executionContext: ExecutionContext | null;
 }
 
 /** Convert bytes to WASM page count (each page = 64 KB). */
