@@ -9,6 +9,7 @@ import type { Result, ResultErr } from '../types.js';
 import type { SandboxError } from '../errors.js';
 import { invalidModule, hostFunctionError } from '../errors.js';
 import type { InternalSandboxState } from '../internal-types.js';
+import { createTimeProvider } from '../determinism/time-injection.js';
 
 /**
  * Build the WebAssembly import object from the sandbox state.
@@ -25,6 +26,27 @@ function buildImportObject(
   if (state.wasmMemory !== null) {
     envImports['memory'] = state.wasmMemory;
   }
+
+  // Inject deterministic __get_time host function
+  const timeProvider = createTimeProvider(state.config.eventTimestamp);
+  envImports['__get_time'] = (): number => {
+    const ctx = state.executionContext;
+    if (ctx !== null) {
+      ctx.gasMeter.consume(1);
+      ctx.timeoutChecker.check();
+    }
+    return timeProvider.getTime();
+  };
+
+  // Inject deterministic __get_random host function
+  envImports['__get_random'] = (): number => {
+    const ctx = state.executionContext;
+    if (ctx !== null) {
+      ctx.gasMeter.consume(1);
+      ctx.timeoutChecker.check();
+    }
+    return state.prng !== null ? state.prng.next() : 0;
+  };
 
   // Inject host functions with gas/timeout interception
   for (const [key, hostFn] of Object.entries(state.config.hostFunctions)) {

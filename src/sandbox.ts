@@ -17,6 +17,7 @@ import { createSandboxInstance } from './loader/instance-factory.js';
 import { loadModule } from './loader/module-loader.js';
 import { instantiate } from './loader/instantiator.js';
 import { execute as executeAction } from './execution/executor.js';
+import { validateModuleImports } from './determinism/isolation.js';
 
 /**
  * Create a new `WasmSandbox` — the main entry point for the library.
@@ -62,11 +63,18 @@ export function createWasmSandbox(): WasmSandbox {
         );
       }
 
+      // Validate imports: reject WASI, undeclared functions, unknown namespaces
+      const importValidation = validateModuleImports(loadResult.value, state.config);
+      if (!importValidation.ok) {
+        throw new Error(
+          `Import validation failed: ${importValidation.error.code === 'INVALID_MODULE' ? importValidation.error.reason : importValidation.error.code}`,
+        );
+      }
+
       const instantiateResult = await instantiate(state, loadResult.value);
       if (!instantiateResult.ok) {
-        const err = instantiateResult.error;
         throw new Error(
-          `Failed to instantiate WASM module: ${err.code === 'INVALID_MODULE' ? err.reason : err.code === 'HOST_FUNCTION_ERROR' ? err.message : err.code}`,
+          `Failed to instantiate WASM module: ${JSON.stringify(instantiateResult.error)}`,
         );
       }
     },

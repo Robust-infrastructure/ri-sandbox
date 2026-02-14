@@ -237,3 +237,253 @@ export function noExportsWasmModule(): Uint8Array {
     0x0b,       // end
   ]);
 }
+
+/**
+ * WASM module that imports from `wasi_snapshot_preview1` namespace.
+ * Used to test isolation — should be rejected by import validation.
+ *
+ * Imports `wasi_snapshot_preview1.fd_write(i32, i32, i32, i32) -> i32`.
+ */
+export function wasiImportWasmModule(): Uint8Array {
+  return new Uint8Array([
+    // Header
+    0x00, 0x61, 0x73, 0x6d,
+    0x01, 0x00, 0x00, 0x00,
+
+    // Type section (id=1): (i32, i32, i32, i32) -> i32
+    0x01,
+    0x09,       // size (9 bytes)
+    0x01,       // 1 type
+    0x60,       // func type
+    0x04,       // 4 params
+    0x7f, 0x7f, 0x7f, 0x7f, // i32 × 4
+    0x01,       // 1 result
+    0x7f,       // i32
+
+    // Import section (id=2): wasi_snapshot_preview1.fd_write
+    0x02,
+    0x23,       // size (35 bytes)
+    0x01,       // 1 import
+    0x16,       // module name length: 22
+    // "wasi_snapshot_preview1"
+    0x77, 0x61, 0x73, 0x69, 0x5f, 0x73, 0x6e, 0x61, 0x70, 0x73,
+    0x68, 0x6f, 0x74, 0x5f, 0x70, 0x72, 0x65, 0x76, 0x69, 0x65,
+    0x77, 0x31,
+    0x08,       // field name length: 8
+    // "fd_write"
+    0x66, 0x64, 0x5f, 0x77, 0x72, 0x69, 0x74, 0x65,
+    0x00,       // import kind: function
+    0x00,       // type index 0
+  ]);
+}
+
+/**
+ * WASM module that imports an undeclared function `env.undeclared_fn`.
+ * Used to test isolation — should be rejected when `undeclared_fn`
+ * is not in the configured host functions.
+ *
+ * Imports `env.undeclared_fn() -> i32`.
+ * Exports `callUndeclared() -> i32`.
+ */
+export function undeclaredImportWasmModule(): Uint8Array {
+  return new Uint8Array([
+    // Header
+    0x00, 0x61, 0x73, 0x6d,
+    0x01, 0x00, 0x00, 0x00,
+
+    // Type section (id=1): () -> i32
+    0x01,
+    0x05,       // size
+    0x01,       // 1 type
+    0x60,       // func type
+    0x00,       // 0 params
+    0x01, 0x7f, // 1 result: i32
+
+    // Import section (id=2): env.undeclared_fn
+    0x02,
+    0x15,       // size (21 bytes)
+    0x01,       // 1 import
+    0x03,       // module name length: 3
+    0x65, 0x6e, 0x76, // "env"
+    0x0d,       // field name length: 13
+    // "undeclared_fn"
+    0x75, 0x6e, 0x64, 0x65, 0x63, 0x6c, 0x61, 0x72, 0x65, 0x64,
+    0x5f, 0x66, 0x6e,
+    0x00,       // import kind: function
+    0x00,       // type index 0
+
+    // Function section (id=3)
+    0x03,
+    0x02,       // size
+    0x01,       // 1 function
+    0x00,       // type index 0
+
+    // Export section (id=7): "callUndeclared" -> func 1
+    0x07,
+    0x12,       // size (18 bytes)
+    0x01,       // 1 export
+    0x0e,       // name length: 14
+    // "callUndeclared"
+    0x63, 0x61, 0x6c, 0x6c, 0x55, 0x6e, 0x64, 0x65, 0x63, 0x6c,
+    0x61, 0x72, 0x65, 0x64,
+    0x00,       // export kind: function
+    0x01,       // function index 1
+
+    // Code section (id=10): callUndeclared body
+    0x0a,
+    0x06,       // size (6 bytes)
+    0x01,       // 1 function body
+    0x04,       // body size (4 bytes)
+    0x00,       // 0 local declarations
+    0x10, 0x00, // call 0 (the imported undeclared_fn)
+    0x0b,       // end
+  ]);
+}
+
+/**
+ * WASM module that imports `env.__get_time() -> i32` and exports
+ * `getTime() -> i32` which calls the imported time function.
+ */
+export function timeImportWasmModule(): Uint8Array {
+  return new Uint8Array([
+    // Header
+    0x00, 0x61, 0x73, 0x6d,
+    0x01, 0x00, 0x00, 0x00,
+
+    // Type section (id=1): () -> i32
+    0x01,
+    0x05,       // size
+    0x01,       // 1 type
+    0x60,       // func type
+    0x00,       // 0 params
+    0x01, 0x7f, // 1 result: i32
+
+    // Import section (id=2): env.__get_time
+    0x02,
+    0x12,       // size (18 bytes)
+    0x01,       // 1 import
+    0x03,       // module name length: 3
+    0x65, 0x6e, 0x76, // "env"
+    0x0a,       // field name length: 10
+    // "__get_time"
+    0x5f, 0x5f, 0x67, 0x65, 0x74, 0x5f, 0x74, 0x69, 0x6d, 0x65,
+    0x00,       // import kind: function
+    0x00,       // type index 0
+
+    // Function section (id=3)
+    0x03,
+    0x02,       // size
+    0x01,       // 1 function
+    0x00,       // type index 0
+
+    // Export section (id=7): "getTime" -> func 1
+    0x07,
+    0x0b,       // size (11 bytes)
+    0x01,       // 1 export
+    0x07,       // name length: 7
+    // "getTime"
+    0x67, 0x65, 0x74, 0x54, 0x69, 0x6d, 0x65,
+    0x00,       // export kind: function
+    0x01,       // function index 1
+
+    // Code section (id=10): getTime body
+    0x0a,
+    0x06,       // size (6 bytes)
+    0x01,       // 1 function body
+    0x04,       // body size (4 bytes)
+    0x00,       // 0 local declarations
+    0x10, 0x00, // call 0 (the imported __get_time)
+    0x0b,       // end
+  ]);
+}
+
+/**
+ * WASM module that imports `env.__get_random() -> i32` and exports
+ * `getRandom() -> i32` which calls the imported random function.
+ */
+export function randomImportWasmModule(): Uint8Array {
+  return new Uint8Array([
+    // Header
+    0x00, 0x61, 0x73, 0x6d,
+    0x01, 0x00, 0x00, 0x00,
+
+    // Type section (id=1): () -> i32
+    0x01,
+    0x05,       // size
+    0x01,       // 1 type
+    0x60,       // func type
+    0x00,       // 0 params
+    0x01, 0x7f, // 1 result: i32
+
+    // Import section (id=2): env.__get_random
+    0x02,
+    0x14,       // size (20 bytes)
+    0x01,       // 1 import
+    0x03,       // module name length: 3
+    0x65, 0x6e, 0x76, // "env"
+    0x0c,       // field name length: 12
+    // "__get_random"
+    0x5f, 0x5f, 0x67, 0x65, 0x74, 0x5f, 0x72, 0x61, 0x6e, 0x64,
+    0x6f, 0x6d,
+    0x00,       // import kind: function
+    0x00,       // type index 0
+
+    // Function section (id=3)
+    0x03,
+    0x02,       // size
+    0x01,       // 1 function
+    0x00,       // type index 0
+
+    // Export section (id=7): "getRandom" -> func 1
+    0x07,
+    0x0d,       // size (13 bytes)
+    0x01,       // 1 export
+    0x09,       // name length: 9
+    // "getRandom"
+    0x67, 0x65, 0x74, 0x52, 0x61, 0x6e, 0x64, 0x6f, 0x6d,
+    0x00,       // export kind: function
+    0x01,       // function index 1
+
+    // Code section (id=10): getRandom body
+    0x0a,
+    0x06,       // size (6 bytes)
+    0x01,       // 1 function body
+    0x04,       // body size (4 bytes)
+    0x00,       // 0 local declarations
+    0x10, 0x00, // call 0 (the imported __get_random)
+    0x0b,       // end
+  ]);
+}
+
+/**
+ * WASM module that imports from a custom namespace `custom_ns.func`.
+ * Used to test that non-"env" namespaces are rejected.
+ */
+export function customNamespaceWasmModule(): Uint8Array {
+  return new Uint8Array([
+    // Header
+    0x00, 0x61, 0x73, 0x6d,
+    0x01, 0x00, 0x00, 0x00,
+
+    // Type section (id=1): () -> i32
+    0x01,
+    0x05,       // size
+    0x01,       // 1 type
+    0x60,       // func type
+    0x00,       // 0 params
+    0x01, 0x7f, // 1 result: i32
+
+    // Import section (id=2): custom_ns.func
+    0x02,
+    0x12,       // size (18 bytes)
+    0x01,       // 1 import
+    0x09,       // module name length: 9
+    // "custom_ns"
+    0x63, 0x75, 0x73, 0x74, 0x6f, 0x6d, 0x5f, 0x6e, 0x73,
+    0x04,       // field name length: 4
+    // "func"
+    0x66, 0x75, 0x6e, 0x63,
+    0x00,       // import kind: function
+    0x00,       // type index 0
+  ]);
+}

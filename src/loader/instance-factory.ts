@@ -7,6 +7,7 @@
 import type { SandboxConfig, SandboxInstance } from '../types.js';
 import type { InternalSandboxState } from '../internal-types.js';
 import { bytesToPages } from '../internal-types.js';
+import { createPrng } from '../determinism/random-injection.js';
 
 /** Counter for deterministic ID generation. */
 let instanceCounter = 0;
@@ -48,6 +49,7 @@ export function createSandboxInstance(config: SandboxConfig): {
     wasmModule: null,
     wasmInstance: null,
     executionContext: null,
+    prng: createPrng(config.deterministicSeed),
   };
 
   const instance: SandboxInstance = {

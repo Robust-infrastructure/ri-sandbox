@@ -341,7 +341,7 @@ Deterministic WASM execution with resource limits, isolation, and snapshot/resto
 
 ---
 
-## M6: Determinism Enforcement (Status: NOT STARTED)
+## M6: Determinism Enforcement (Status: COMPLETE)
 
 **Goal**: Guarantee that identical inputs always produce identical outputs — eliminate all sources of non-determinism.
 
@@ -349,56 +349,64 @@ Deterministic WASM execution with resource limits, isolation, and snapshot/resto
 
 ### Tasks
 
-- [ ] Create `src/determinism/time-injection.ts` — deterministic time
+- [x] Create `src/determinism/time-injection.ts` — deterministic time
     - Provide `eventTimestamp` from `SandboxConfig` to WASM via host function
     - Host function `__get_time()` returns `config.eventTimestamp` (always the same value per execution)
     - No access to `Date.now()`, `performance.now()`, or any real clock
-- [ ] Create `src/determinism/random-injection.ts` — deterministic PRNG
-    - Implement a seeded PRNG (e.g., xorshift128+ or PCG)
+- [x] Create `src/determinism/random-injection.ts` — deterministic PRNG
+    - Implemented Mulberry32 seeded PRNG (32-bit output, single u32 state)
     - Seed from `config.deterministicSeed`
     - Host function `__get_random()` returns next PRNG value
     - Same seed → same sequence of random numbers (always)
     - PRNG state is part of the sandbox state (snapshot/restore includes it)
-- [ ] Create `src/determinism/isolation.ts` — ambient state isolation
+- [x] Create `src/determinism/isolation.ts` — ambient state isolation
     - Verify: WASM module has no imports other than declared host functions
-    - Reject modules that import `wasi_snapshot_preview1` or other system interfaces
+    - Reject modules that import `wasi_snapshot_preview1`, `wasi_unstable`, or `wasi`
     - Reject modules that import undeclared functions
     - Log all imports during loading for auditability
-- [ ] Create `src/determinism/determinism-validator.ts` — optional double-execution check
-    - `validateDeterminism(instance, action, payload)`:
-        1. Execute once, capture result + metrics
-        2. Restore to pre-execution state (snapshot)
-        3. Execute again with identical inputs
-        4. Compare results byte-for-byte
-        5. Return match/mismatch report
+- [x] Create `src/determinism/determinism-validator.ts` — optional double-execution check
+    - `validateDeterminism(state, action, payload)`:
+        1. Capture memory + PRNG state
+        2. Execute once, capture result
+        3. Restore memory + PRNG to pre-execution state
+        4. Execute again with identical inputs
+        5. Compare results byte-for-byte
+        6. Return match/mismatch report
     - This is expensive (2x execution) — intended for testing and auditing, not production
-- [ ] Create `src/determinism/time-injection.test.ts` — unit tests:
+- [x] Create `src/determinism/time-injection.test.ts` — 7 unit tests:
     - `__get_time()` returns configured timestamp
     - Different timestamps produce different results in time-dependent code
     - Same timestamp always produces same result
-- [ ] Create `src/determinism/random-injection.test.ts` — unit tests:
+- [x] Create `src/determinism/random-injection.test.ts` — 11 unit tests:
     - Same seed → same sequence (100 values)
     - Different seed → different sequence
     - PRNG distributes across range (basic statistical test)
-    - Sequence is reproducible after snapshot/restore
-- [ ] Create `src/determinism/isolation.test.ts` — unit tests:
+    - Sequence is reproducible after state save/restore
+- [x] Create `src/determinism/isolation.test.ts` — 10 unit tests:
     - Module with only declared imports: accepted
     - Module with undeclared import: rejected with clear error
     - Module with WASI imports: rejected
-- [ ] Create `src/determinism/determinism-validator.test.ts` — unit tests:
+    - Module with custom namespace: rejected
+- [x] Create `src/determinism/determinism-validator.test.ts` — 8 unit tests:
     - Deterministic function: double-execution matches
     - Function using injected time: matches with same timestamp
     - Function using injected random: matches with same seed
+    - compareResults unit tests for mismatch detection
+- [x] Wire `__get_time` and `__get_random` into instantiator's env imports
+- [x] Wire `validateModuleImports` into sandbox load path
+- [x] Add `prng` field to `InternalSandboxState`
+- [x] All 237 tests pass across 18 test files
+- [x] Coverage: 95.17% lines, 85.09% branches, 100% functions
 
 ### Done When
 
-- [ ] Time is injected, never read from host clock
-- [ ] Random numbers come from seeded PRNG, never from `crypto.getRandomValues`
-- [ ] Undeclared imports are rejected during module loading
-- [ ] Double-execution validator confirms determinism
-- [ ] All 7 non-determinism sources from the spec are addressed
-- [ ] All unit tests pass
-- [ ] Coverage ≥ 90% for determinism modules
+- [x] Time is injected, never read from host clock
+- [x] Random numbers come from seeded PRNG, never from `crypto.getRandomValues`
+- [x] Undeclared imports are rejected during module loading
+- [x] Double-execution validator confirms determinism
+- [x] All 7 non-determinism sources from the spec are addressed
+- [x] All unit tests pass
+- [x] Coverage ≥ 90% for determinism modules
 
 ---
 

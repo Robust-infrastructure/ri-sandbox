@@ -4,7 +4,7 @@ Deterministic WASM execution with resource limits, isolation, and snapshot/resto
 
 ## Status
 
-**v0.5.0 — Gas Metering & Resource Limits**
+**v0.6.0 — Determinism Enforcement**
 
 | Milestone | Status |
 |-----------|--------|
@@ -13,7 +13,7 @@ Deterministic WASM execution with resource limits, isolation, and snapshot/resto
 | M3: WASM Module Loading & Instantiation | Complete |
 | M4: Execution Engine & Host Function Bridge | Complete |
 | M5: Gas Metering & Resource Limits | Complete |
-| M6: Determinism Enforcement | Not Started |
+| M6: Determinism Enforcement | Complete |
 | M7: Snapshot & Restore | Not Started |
 | M8: Memory Pressure System | Not Started |
 | M9: Integration Tests & Performance Validation | Not Started |
@@ -30,6 +30,7 @@ See [ROADMAP.md](ROADMAP.md) for the full development plan.
 - **Snapshot/restore** — serialize and resume execution state
 - **Host function injection** — controlled WASM-to-host bridge
 - **Gas metering enforcement** — computation budget per execution
+- **Determinism enforcement** — seeded PRNG, injected time, import isolation
 
 ## Install
 
@@ -107,6 +108,26 @@ if (!result.ok) {
   }
 }
 ```
+
+### Determinism Enforcement
+
+The sandbox eliminates all sources of non-determinism at load time and execution time:
+
+| Mechanism | Module | Description |
+|-----------|--------|-------------|
+| Time injection | `time-injection.ts` | `__get_time()` host function returns `config.eventTimestamp` — never reads the system clock |
+| Seeded PRNG | `random-injection.ts` | `__get_random()` host function returns values from a Mulberry32 PRNG seeded with `config.deterministicSeed` |
+| Import isolation | `isolation.ts` | Rejects WASM modules that import WASI, undeclared functions, or non-`env` namespaces |
+| Double-execution check | `determinism-validator.ts` | Runs a function twice with state capture/restore and compares results byte-for-byte |
+
+The `__get_time` and `__get_random` host functions are automatically injected into every sandbox instance. WASM modules can import them from the `env` namespace:
+
+```wat
+(import "env" "__get_time" (func $get_time (result i32)))
+(import "env" "__get_random" (func $get_random (result i32)))
+```
+
+Import validation runs during `sandbox.load()` — modules with disallowed imports are rejected before instantiation with an `INVALID_MODULE` error.
 
 ### `createWasmSandbox(): WasmSandbox`
 

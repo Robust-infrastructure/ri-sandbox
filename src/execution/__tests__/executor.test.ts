@@ -66,6 +66,7 @@ async function createLoadedState(
     wasmModule: module,
     wasmInstance: instance,
     executionContext: null,
+    prng: null,
   };
 }
 

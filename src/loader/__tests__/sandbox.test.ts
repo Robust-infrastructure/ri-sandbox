@@ -53,11 +53,11 @@ describe('sandbox create & load', () => {
     await expect(sandbox.load(instance, badBytes)).rejects.toThrow('Failed to load WASM module');
   });
 
-  it('load throws when instantiation fails due to missing imports', async () => {
+  it('load throws when import validation fails due to undeclared imports', async () => {
     // hostCallWasmModule expects env.double import, but no host functions configured
     const instance = sandbox.create(makeConfig());
     await expect(sandbox.load(instance, hostCallWasmModule())).rejects.toThrow(
-      'Failed to instantiate WASM module',
+      'Import validation failed',
     );
   });
 
@@ -88,6 +88,33 @@ describe('sandbox create & load', () => {
     expect(metrics.gasLimit).toBe(DEFAULT_MAX_GAS);
     expect(metrics.memoryLimitBytes).toBe(DEFAULT_MAX_MEMORY_BYTES);
     expect(metrics.memoryUsedBytes).toBeGreaterThan(0);
+  });
+
+  it('getMetrics works before module is loaded (created status)', () => {
+    const instance = sandbox.create(makeConfig());
+    const metrics = sandbox.getMetrics(instance);
+    expect(metrics.gasUsed).toBe(0);
+    expect(metrics.memoryUsedBytes).toBeGreaterThan(0);
+  });
+
+  it('execute after load with valid host functions succeeds', async () => {
+    const config = makeConfig({
+      hostFunctions: {
+        double: {
+          name: 'double',
+          params: ['i32' as const],
+          results: ['i32' as const],
+          handler: (...args: readonly number[]) => (args[0] ?? 0) * 2,
+        },
+      },
+    });
+    const instance = sandbox.create(config);
+    await sandbox.load(instance, hostCallWasmModule());
+    const result = sandbox.execute(instance, 'callDouble', [5]);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value).toBe(10);
+    }
   });
 });
 
@@ -133,5 +160,13 @@ describe('sandbox destroy', () => {
   it('snapshot throws after destroy (stub — will be real in M7)', () => {
     sandbox.destroy(instance);
     expect(() => { sandbox.snapshot(instance); }).toThrow();
+  });
+
+  it('snapshot throws on non-destroyed instance (stub — not yet implemented)', () => {
+    expect(() => { sandbox.snapshot(instance); }).toThrow('not yet implemented');
+  });
+
+  it('restore throws on non-destroyed instance (stub — not yet implemented)', () => {
+    expect(() => { sandbox.restore(instance, new Uint8Array(0)); }).toThrow('not yet implemented');
   });
 });

@@ -9,8 +9,9 @@ import { describe, it, expect } from 'vitest';
 import { execute } from '../../execution/executor.js';
 import type { InternalSandboxState } from '../../internal-types.js';
 import type { SandboxConfig, ResourceMetrics } from '../../types.js';
-import { hostCallWasmModule, addWasmModule } from '../../loader/__tests__/wasm-fixtures.js';
+import { hostCallWasmModule, addWasmModule, timeImportWasmModule, randomImportWasmModule } from '../../loader/__tests__/wasm-fixtures.js';
 import { instantiate } from '../../loader/instantiator.js';
+import { createPrng } from '../../determinism/random-injection.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -56,6 +57,7 @@ async function createLoadedState(
     wasmModule: null,
     wasmInstance: null,
     executionContext: null,
+    prng: createPrng(fullConfig.deterministicSeed),
   };
 
   const result = await instantiate(state, module);
@@ -350,5 +352,104 @@ describe('execute — execution context lifecycle', () => {
     execute(state, 'callDouble', [5]);
     // Metrics should be updated even on error
     expect(state.metrics.gasLimit).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Deterministic host functions (__get_time, __get_random)
+// ---------------------------------------------------------------------------
+
+describe('deterministic host functions', () => {
+  it('__get_time returns the configured eventTimestamp', async () => {
+    const state = await createLoadedState(timeImportWasmModule(), {
+      eventTimestamp: 42,
+    });
+    const result = execute(state, 'getTime', null);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value).toBe(42);
+    }
+  });
+
+  it('__get_time returns same value on repeated calls', async () => {
+    const state = await createLoadedState(timeImportWasmModule(), {
+      eventTimestamp: 1700000000000,
+    });
+    const r1 = execute(state, 'getTime', null);
+    const r2 = execute(state, 'getTime', null);
+    expect(r1.ok).toBe(true);
+    expect(r2.ok).toBe(true);
+    if (r1.ok && r2.ok) {
+      expect(r1.value).toBe(r2.value);
+    }
+  });
+
+  it('__get_random returns deterministic value from seeded PRNG', async () => {
+    const state = await createLoadedState(randomImportWasmModule(), {
+      deterministicSeed: 12345,
+    });
+    const result = execute(state, 'getRandom', null);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(typeof result.value).toBe('number');
+    }
+  });
+
+  it('__get_random returns same value with same seed on separate instances', async () => {
+    const state1 = await createLoadedState(randomImportWasmModule(), {
+      deterministicSeed: 42,
+    });
+    const state2 = await createLoadedState(randomImportWasmModule(), {
+      deterministicSeed: 42,
+    });
+    const r1 = execute(state1, 'getRandom', null);
+    const r2 = execute(state2, 'getRandom', null);
+    expect(r1.ok).toBe(true);
+    expect(r2.ok).toBe(true);
+    if (r1.ok && r2.ok) {
+      expect(r1.value).toBe(r2.value);
+    }
+  });
+
+  it('__get_random returns different values with different seeds', async () => {
+    const state1 = await createLoadedState(randomImportWasmModule(), {
+      deterministicSeed: 1,
+    });
+    const state2 = await createLoadedState(randomImportWasmModule(), {
+      deterministicSeed: 2,
+    });
+    const r1 = execute(state1, 'getRandom', null);
+    const r2 = execute(state2, 'getRandom', null);
+    expect(r1.ok).toBe(true);
+    expect(r2.ok).toBe(true);
+    if (r1.ok && r2.ok) {
+      expect(r1.value).not.toBe(r2.value);
+    }
+  });
+
+  it('__get_time consumes gas', async () => {
+    const state = await createLoadedState(timeImportWasmModule(), {
+      eventTimestamp: 42,
+      maxGas: 100,
+    });
+    const result = execute(state, 'getTime', null);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      // Calling __get_time consumes 1 gas
+      expect(result.gasUsed).toBe(1);
+    }
+  });
+
+  it('__get_random consumes gas', async () => {
+    const state = await createLoadedState(randomImportWasmModule(), {
+      deterministicSeed: 42,
+      maxGas: 100,
+    });
+    const result = execute(state, 'getRandom', null);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      // Calling __get_random consumes 1 gas
+      expect(result.gasUsed).toBe(1);
+    }
   });
 });

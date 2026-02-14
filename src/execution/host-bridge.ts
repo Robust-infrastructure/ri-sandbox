@@ -58,15 +58,12 @@ export function buildHostImports(
 ): Record<string, (...args: number[]) => number | undefined> {
   const imports: Record<string, (...args: number[]) => number | undefined> = {};
 
-  for (const [key, fn] of Object.entries(hostFunctions)) {
+  for (const [, fn] of Object.entries(hostFunctions)) {
     // noUncheckedIndexedAccess: fn may be undefined from Object.entries
     const hostFn: HostFunction | undefined = fn;
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- noUncheckedIndexedAccess guard
     if (hostFn !== undefined) {
       imports[hostFn.name] = wrapHostFunction(hostFn, capturedErrors);
-    } else {
-      // Defensive: key exists but value is undefined (shouldn't happen with valid HostFunctionMap)
-      void key;
     }
   }
 

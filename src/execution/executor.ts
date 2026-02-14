@@ -46,10 +46,7 @@ function toDirectArgs(payload: unknown): number[] {
   if (typeof payload === 'number') {
     return [payload];
   }
-  if (Array.isArray(payload)) {
-    return payload as number[];
-  }
-  return [];
+  return Array.isArray(payload) ? (payload as number[]) : [];
 }
 
 // ---------------------------------------------------------------------------
@@ -223,11 +220,14 @@ function executeJsonPayload(
   action: string,
   payload: unknown,
 ): unknown {
-  if (state.wasmInstance === null || state.wasmMemory === null) {
+  // These are guaranteed by the caller (execute), but TypeScript needs the narrowing
+  const wasmInstance = state.wasmInstance;
+  const wasmMemory = state.wasmMemory;
+  if (wasmInstance === null || wasmMemory === null) {
     throw new Error('No WASM instance or memory available');
   }
 
-  const alloc = state.wasmInstance.exports['__alloc'];
+  const alloc = wasmInstance.exports['__alloc'];
   if (typeof alloc !== 'function') {
     throw new Error(
       `JSON payload requires WASM module to export '__alloc', ` +
@@ -243,7 +243,7 @@ function executeJsonPayload(
   const ptr = (alloc as (size: number) => number)(jsonBytes.length);
 
   // Write JSON bytes to WASM memory
-  const memoryView = new Uint8Array(state.wasmMemory.buffer);
+  const memoryView = new Uint8Array(wasmMemory.buffer);
   memoryView.set(jsonBytes, ptr);
 
   // Call the action with (pointer, length)
@@ -262,7 +262,7 @@ function executeJsonPayload(
   }
 
   // Re-create view after potential memory growth
-  const resultView = new Uint8Array(state.wasmMemory.buffer);
+  const resultView = new Uint8Array(wasmMemory.buffer);
   const resultBytes = resultView.slice(resultPtr, resultPtr + resultLen);
 
   const decoder = new TextDecoder();
