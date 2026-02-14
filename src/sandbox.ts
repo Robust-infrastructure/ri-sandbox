@@ -17,6 +17,7 @@ import type { InternalSandboxState } from './internal-types.js';
 import { createSandboxInstance } from './loader/instance-factory.js';
 import { loadModule } from './loader/module-loader.js';
 import { instantiate } from './loader/instantiator.js';
+import { execute as executeAction } from './execution/executor.js';
 
 /**
  * Get a fresh snapshot of the public SandboxInstance from internal state.
@@ -83,9 +84,9 @@ export function createWasmSandbox(): WasmSandbox {
       }
     },
 
-    execute(_instance: SandboxInstance, _action: string, _payload: unknown): ExecutionResult {
-      // Stub — implemented in M4
-      throw new Error('execute() not yet implemented — see M4');
+    execute(instance: SandboxInstance, action: string, payload: unknown): ExecutionResult {
+      const state = requireState(instance);
+      return executeAction(state, action, payload);
     },
 
     destroy(instance: SandboxInstance): void {

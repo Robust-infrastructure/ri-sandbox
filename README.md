@@ -4,14 +4,14 @@ Deterministic WASM execution with resource limits, isolation, and snapshot/resto
 
 ## Status
 
-**v0.3.0 — WASM Module Loading & Instantiation**
+**v0.4.0 — Execution Engine & Host Function Bridge**
 
 | Milestone | Status |
 |-----------|--------|
 | M1: Project Scaffolding | Complete |
 | M2: Core Types & Configuration | Complete |
 | M3: WASM Module Loading & Instantiation | Complete |
-| M4: Execution Engine & Host Function Bridge | Not Started |
+| M4: Execution Engine & Host Function Bridge | Complete |
 | M5: Gas Metering & Resource Limits | Not Started |
 | M6: Determinism Enforcement | Not Started |
 | M7: Snapshot & Restore | Not Started |
@@ -61,7 +61,14 @@ const wasmBytes = new Uint8Array(/* ... your .wasm file ... */);
 await sandbox.load(instance, wasmBytes);
 // instance status is now "loaded"
 
-// 4. Check resource metrics
+// 4. Execute a WASM function
+const result = sandbox.execute(instance, 'add', [3, 7]);
+if (result.ok) {
+  console.log(result.value); // 10
+  console.log(result.metrics);
+}
+
+// 5. Check resource metrics
 const metrics = sandbox.getMetrics(instance);
 // metrics.memoryUsedBytes, metrics.memoryLimitBytes, ...
 

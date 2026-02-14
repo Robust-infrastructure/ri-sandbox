@@ -113,11 +113,13 @@ describe('sandbox destroy', () => {
     await expect(sandbox.load(instance, memoryImportWasmModule())).rejects.toThrow('destroyed');
   });
 
-  it('execute throws after destroy (stub — will be real in M4)', () => {
+  it('execute returns INSTANCE_DESTROYED after destroy', () => {
     sandbox.destroy(instance);
-    // execute currently throws "not yet implemented" regardless,
-    // but once implemented, it should return INSTANCE_DESTROYED.
-    expect(() => { sandbox.execute(instance, 'test', {}); }).toThrow();
+    const result = sandbox.execute(instance, 'test', {});
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe('INSTANCE_DESTROYED');
+    }
   });
 
   it('snapshot throws after destroy (stub — will be real in M7)', () => {
