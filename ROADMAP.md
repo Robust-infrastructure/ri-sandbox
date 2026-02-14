@@ -54,12 +54,12 @@ Deterministic WASM execution with resource limits, isolation, and snapshot/resto
 ### Tasks
 
 - [ ] Define `SandboxConfig` interface:
-    - `maxMemoryBytes` (number) — hard memory limit for the WASM instance
-    - `maxGas` (number) — computation budget per execution (instruction count)
-    - `maxExecutionMs` (number) — wall-clock timeout
-    - `hostFunctions` (HostFunctionMap) — injected bridge functions
-    - `deterministicSeed` (number) — PRNG seed for deterministic random
-    - `eventTimestamp` (number) — injected "current time" (milliseconds since epoch)
+    - `maxMemoryBytes` (number, default 16_777_216 — 16 MB) — hard memory limit for the WASM instance
+    - `maxGas` (number, default 1_000_000) — computation budget per execution (instruction count)
+    - `maxExecutionMs` (number, default 50) — wall-clock timeout
+    - `hostFunctions` (HostFunctionMap, default {}) — injected bridge functions
+    - `deterministicSeed` (number, default 0) — PRNG seed for deterministic random
+    - `eventTimestamp` (number, default Date.now() at creation) — injected "current time" (milliseconds since epoch)
 - [ ] Define `HostFunctionMap` type — `Record<string, HostFunction>`
 - [ ] Define `HostFunction` interface:
     - `name` (string) — function name as seen from WASM
