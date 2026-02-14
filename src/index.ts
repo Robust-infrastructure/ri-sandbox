@@ -55,3 +55,17 @@ export {
 // ---------------------------------------------------------------------------
 
 export { createWasmSandbox } from './sandbox.js';
+
+// ---------------------------------------------------------------------------
+// Memory Pressure
+// ---------------------------------------------------------------------------
+
+export { getMemoryPressure } from './pressure/memory-pressure.js';
+export { advise } from './pressure/pressure-advisor.js';
+export type {
+  PressureRecommendation,
+  NoActionRecommendation,
+  LogRecommendation,
+  SuspendRecommendation,
+  EmergencySaveRecommendation,
+} from './pressure/pressure-advisor.js';

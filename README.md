@@ -4,7 +4,7 @@ Deterministic WASM execution with resource limits, isolation, and snapshot/resto
 
 ## Status
 
-**v0.7.0 — Snapshot & Restore**
+**v0.8.0 — Memory Pressure System**
 
 | Milestone | Status |
 |-----------|--------|
@@ -15,8 +15,7 @@ Deterministic WASM execution with resource limits, isolation, and snapshot/resto
 | M5: Gas Metering & Resource Limits | Complete |
 | M6: Determinism Enforcement | Complete |
 | M7: Snapshot & Restore | Complete |
-| M7: Snapshot & Restore | Not Started |
-| M8: Memory Pressure System | Not Started |
+| M8: Memory Pressure System | Complete |
 | M9: Integration Tests & Performance Validation | Not Started |
 
 See [ROADMAP.md](ROADMAP.md) for the full development plan.
@@ -33,6 +32,7 @@ See [ROADMAP.md](ROADMAP.md) for the full development plan.
 - **Gas metering enforcement** — computation budget per execution
 - **Determinism enforcement** — seeded PRNG, injected time, import isolation
 - **Snapshot/restore** — serialize and resume execution state
+- **Memory pressure monitoring** — tiered alerts with actionable recommendations
 
 ## Install
 
@@ -150,6 +150,35 @@ const result = sandbox.execute(instance, 'processEvent', payload);
 ```
 
 Snapshot binary format: 5-byte header (`WSNP` magic + version), memory section (uint32 length + raw bytes), state section (uint32 length + JSON). Invalid or corrupted snapshots are rejected with `SNAPSHOT_ERROR`.
+
+### Memory Pressure
+
+Monitor system-wide memory usage across sandbox instances and get actionable recommendations:
+
+```typescript
+import { getMemoryPressure, advise } from 'ri-sandbox';
+
+// Compute pressure level — caller provides the memory budget
+const level = getMemoryPressure(instances, availableBytes);
+// level: 'NORMAL' | 'WARNING' | 'PRESSURE' | 'CRITICAL' | 'OOM'
+
+// Get actionable recommendation
+const rec = advise(level, instances, foregroundInstanceId);
+switch (rec.action) {
+  case 'none': break;
+  case 'log': console.warn(rec.message); break;
+  case 'suspend': rec.instanceIds.forEach(id => /* suspend */); break;
+  case 'emergency_save': rec.instanceIds.forEach(id => /* snapshot + suspend */); break;
+}
+```
+
+| Level | Threshold | Recommendation |
+|-------|-----------|----------------|
+| NORMAL | < 70% | No action |
+| WARNING | 70–85% | Log a warning |
+| PRESSURE | 85–95% | Suspend non-foreground instances |
+| CRITICAL | ≥ 95% | Emergency save all non-foreground |
+| OOM | ≥ 100% | Emergency save (should never happen) |
 
 ### `createWasmSandbox(): WasmSandbox`
 

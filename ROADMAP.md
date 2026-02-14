@@ -481,7 +481,7 @@ Deterministic WASM execution with resource limits, isolation, and snapshot/resto
 
 ---
 
-## M8: Memory Pressure System (Status: NOT STARTED)
+## M8: Memory Pressure System (Status: COMPLETE)
 
 **Goal**: System-wide memory pressure monitoring with tiered responses.
 
@@ -489,52 +489,57 @@ Deterministic WASM execution with resource limits, isolation, and snapshot/resto
 
 ### Tasks
 
-- [ ] Create `src/pressure/memory-pressure.ts` — pressure level computation
-    - `getMemoryPressure(instances: SandboxInstance[], availableBytes: number): MemoryPressureLevel`
+- [x] Create `src/pressure/memory-pressure.ts` — pressure level computation
+    - `getMemoryPressure(instances, availableBytes): MemoryPressureLevel`
     - Sum memory usage across all active sandbox instances
     - Compute usage percentage: `totalUsed / availableBytes * 100`
     - Return level:
         - `NORMAL` (< 70%): no action needed
         - `WARNING` (70–85%): recommend compacting caches, logging
         - `PRESSURE` (85–95%): recommend suspending background instances
-        - `CRITICAL` (> 95%): recommend emergency save, suspend all but foreground
-        - `OOM`: should never happen — if it does, report it
+        - `CRITICAL` (≥ 95%): recommend emergency save, suspend all but foreground
+        - `OOM` (≥ 100%): should never happen — if it does, report it
     - Caller provides `availableBytes` — library doesn't access platform memory APIs
-- [ ] Create `src/pressure/pressure-advisor.ts` — actionable recommendations
-    - Given a pressure level + list of instances, return recommended actions:
+    - Edge cases: 0 or negative availableBytes → OOM
+- [x] Create `src/pressure/pressure-advisor.ts` — actionable recommendations
+    - Given a pressure level + list of instances + foreground ID, return recommended actions:
+        - `NORMAL`: `{ action: 'none' }`
         - `WARNING`: `{ action: 'log', message: string }`
-        - `PRESSURE`: `{ action: 'suspend', instanceIds: string[] }` — recommend suspending instances by age (oldest first)
-        - `CRITICAL`: `{ action: 'emergency_save', instanceIds: string[] }` — recommend saving all but foreground
+        - `PRESSURE`: `{ action: 'suspend', instanceIds: string[] }` — non-foreground, oldest first
+        - `CRITICAL`/`OOM`: `{ action: 'emergency_save', instanceIds: string[] }` — all non-foreground
+    - Excludes destroyed instances from recommendations
     - Library returns recommendations — caller decides whether to act on them
-- [ ] Define `MemoryPressureLevel` type — `'NORMAL' | 'WARNING' | 'PRESSURE' | 'CRITICAL' | 'OOM'`
-- [ ] Define `PressureRecommendation` type with discriminated union per action
-- [ ] Create `src/pressure/memory-pressure.test.ts` — unit tests:
-    - 0% usage: NORMAL
-    - 50% usage: NORMAL
-    - 70% usage: WARNING (boundary)
-    - 75% usage: WARNING
-    - 85% usage: PRESSURE (boundary)
-    - 90% usage: PRESSURE
-    - 95% usage: CRITICAL (boundary)
-    - 99% usage: CRITICAL
-    - 100% usage: OOM
-    - Multiple instances: totals summed correctly
-    - Single instance using all memory: correct level
-- [ ] Create `src/pressure/pressure-advisor.test.ts` — unit tests:
-    - WARNING: returns log recommendation
-    - PRESSURE: returns suspend recommendation with oldest instances
-    - CRITICAL: returns emergency_save with all non-foreground instances
-    - NORMAL: returns no recommendation
-- [ ] Wire `getMemoryPressure` into the public API (optional utility export)
+- [x] `MemoryPressureLevel` type already defined in `types.ts`
+- [x] Define `PressureRecommendation` type with discriminated union per action
+    - `NoActionRecommendation`, `LogRecommendation`, `SuspendRecommendation`, `EmergencySaveRecommendation`
+- [x] Create `src/pressure/__tests__/memory-pressure.test.ts` — 17 unit tests:
+    - 0%, 50%, 69% usage: NORMAL
+    - 70% (boundary), 75%, 84%: WARNING
+    - 85% (boundary), 90%: PRESSURE
+    - 95% (boundary), 99%: CRITICAL
+    - 100%, >100%: OOM
+    - Multiple instances summed correctly
+    - Edge cases: 0 and negative availableBytes → OOM
+- [x] Create `src/pressure/__tests__/pressure-advisor.test.ts` — 10 unit tests:
+    - NORMAL: no action
+    - WARNING: log with instance count
+    - PRESSURE: suspend non-foreground instances
+    - CRITICAL: emergency_save non-foreground instances
+    - OOM: emergency_save
+    - Filters destroyed instances, handles empty lists, single-foreground
+- [x] Wire `getMemoryPressure` and `advise` into public API via `index.ts`
+- [x] All 299 tests pass across 23 test files
+- [x] Coverage: 95.5% lines, 86.72% branches, 100% functions
+- [x] Pressure modules: 100% coverage across all metrics
 
 ### Done When
 
-- [ ] Pressure levels computed correctly for all thresholds
-- [ ] Boundary values (exactly 70%, 85%, 95%) return correct levels
-- [ ] Recommendations are actionable and specific
-- [ ] Library doesn't access platform memory APIs — caller provides usage data
-- [ ] All unit tests pass
-- [ ] Coverage ≥ 90% for pressure modules
+- [x] Pressure levels computed correctly for all thresholds
+- [x] Boundary values (exactly 70%, 85%, 95%) return correct levels
+- [x] Recommendations are actionable and specific
+- [x] Library doesn't access platform memory APIs — caller provides usage data
+- [x] All unit tests pass
+- [x] Coverage ≥ 90% for pressure modules
 
 ---
 
