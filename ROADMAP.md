@@ -158,6 +158,18 @@ Deterministic WASM execution with resource limits, isolation, and snapshot/resto
     - Missing import: clear error listing expected imports
     - Host functions are callable from WASM
 - [ ] Wire `create` and `load` into `WasmSandbox` factory function in `src/sandbox.ts`
+- [ ] Implement `destroy(instance)` in `src/sandbox.ts`:
+    - Verify instance status is not already `destroyed`
+    - Release WASM memory (set memory buffer reference to null)
+    - Clear all host function references
+    - Set instance status to `destroyed`
+    - Subsequent calls to `execute`, `snapshot`, `restore`, `getMetrics` on a destroyed instance return `INSTANCE_DESTROYED` error
+- [ ] Create `src/loader/destroy.test.ts` — unit tests:
+    - Destroy loaded instance: status becomes `destroyed`
+    - Destroy already-destroyed instance: returns error
+    - Execute after destroy: returns `INSTANCE_DESTROYED`
+    - Snapshot after destroy: returns `INSTANCE_DESTROYED`
+    - GetMetrics after destroy: returns `INSTANCE_DESTROYED`
 - [ ] Export factory function `createWasmSandbox(): WasmSandbox` from `src/index.ts`
 
 ### Done When
