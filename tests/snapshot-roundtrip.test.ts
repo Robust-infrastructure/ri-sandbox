@@ -8,7 +8,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createWasmSandbox } from '../src/sandbox.js';
 import { resetInstanceCounter } from '../src/loader/instance-factory.js';
-import type { SandboxConfig, WasmSandbox, SandboxInstance } from '../src/types.js';
+import type { SandboxConfig, WasmSandbox } from '../src/types.js';
 import {
   DEFAULT_MAX_MEMORY_BYTES,
   DEFAULT_MAX_GAS,

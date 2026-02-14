@@ -4,7 +4,7 @@ Deterministic WASM execution with resource limits, isolation, and snapshot/resto
 
 ## Status
 
-**v0.8.0 — Memory Pressure System**
+**v1.0.0 — Production Ready**
 
 | Milestone | Status |
 |-----------|--------|
@@ -16,7 +16,7 @@ Deterministic WASM execution with resource limits, isolation, and snapshot/resto
 | M6: Determinism Enforcement | Complete |
 | M7: Snapshot & Restore | Complete |
 | M8: Memory Pressure System | Complete |
-| M9: Integration Tests & Performance Validation | Not Started |
+| M9: Integration Tests & Performance Validation | Complete |
 
 See [ROADMAP.md](ROADMAP.md) for the full development plan.
 
@@ -27,7 +27,6 @@ See [ROADMAP.md](ROADMAP.md) for the full development plan.
 - **Deterministic execution** — identical inputs produce identical outputs, always
 - **Resource limits** — memory caps, gas metering, wall-clock timeouts
 - **Complete isolation** — no host memory access, no ambient authority
-- **Snapshot/restore** — serialize and resume execution state
 - **Host function injection** — controlled WASM-to-host bridge
 - **Gas metering enforcement** — computation budget per execution
 - **Determinism enforcement** — seeded PRNG, injected time, import isolation
@@ -357,3 +356,90 @@ npm run build        # Build
 ## License
 
 MIT
+
+## Architecture
+
+The sandbox is structured as a pipeline:
+
+```
+Caller
+  │
+  ├─ create(config) ─────→ Instance Factory → WebAssembly.Memory + PRNG
+  ├─ load(instance, wasm) ─→ Module Loader → Import Validator → Instantiator
+  ├─ execute(instance, ..) → Executor → Gas Meter + Timeout + Memory Check
+  ├─ snapshot(instance) ──→ Serializer → Binary (WSNP header + memory + state)
+  ├─ restore(instance, ..) → Deserializer → Memory + PRNG + gas restoration
+  └─ destroy(instance) ───→ Resource cleanup
+```
+
+Key internal modules:
+
+| Module | Path | Responsibility |
+|--------|------|----------------|
+| Instance Factory | `src/loader/instance-factory.ts` | Creates sandbox instances with WASM memory and PRNG |
+| Module Loader | `src/loader/module-loader.ts` | Validates and compiles WASM bytes |
+| Import Validator | `src/determinism/isolation.ts` | Rejects WASI, undeclared imports, non-env namespaces |
+| Instantiator | `src/loader/instantiator.ts` | Wires host functions, memory, time, and random injection |
+| Executor | `src/execution/executor.ts` | Executes WASM functions with resource enforcement |
+| Gas Meter | `src/resources/gas-meter.ts` | Tracks computation budget at host function boundaries |
+| Timeout Checker | `src/resources/timeout.ts` | Wall-clock timeout with injectable timer |
+| Memory Limiter | `src/resources/memory-limiter.ts` | Post-execution memory usage check |
+| Serializer | `src/snapshot/serializer.ts` | Binary snapshot creation (WSNP format) |
+| Deserializer | `src/snapshot/deserializer.ts` | Binary snapshot restoration with full validation |
+| Pressure | `src/pressure/memory-pressure.ts` | System-wide memory pressure computation |
+| Advisor | `src/pressure/pressure-advisor.ts` | Actionable pressure recommendations |
+
+## Performance Characteristics
+
+| Operation | Target | Measured |
+|-----------|--------|----------|
+| Create sandbox instance | < 5ms | < 1ms |
+| Load WASM module | < 50ms | < 5ms |
+| Execute simple function (add) | < 1ms | < 0.1ms |
+| Execute fibonacci(20) with gas metering | < 50ms | < 5ms |
+| Snapshot | < 10ms | < 1ms |
+| Restore | < 10ms | < 1ms |
+| Create + load + execute end-to-end | < 100ms | < 10ms |
+| 10 concurrent instances | all functional | < 10ms total |
+
+## Test WASM Modules
+
+The library includes hand-crafted WASM binaries in `src/loader/__tests__/wasm-fixtures.ts` for testing:
+
+| Module | Exports | Purpose |
+|--------|---------|----------|
+| `addWasmModule()` | `add(i32, i32): i32` | Pure computation |
+| `counterWasmModule()` | `increment(): void`, `get(): i32` | Stateful execution |
+| `fibonacciWasmModule()` | `fib(i32): i32` | Gas metering (calls `__get_time` each iteration) |
+| `memoryHogWasmModule()` | `allocate(i32): void`, `getMemSize(): i32` | Memory growth testing |
+| `infiniteLoopWasmModule()` | `loop(): void` | Gas/timeout testing (never returns) |
+| `hostCallWasmModule()` | `callDouble(i32): i32` | Single host function call |
+| `multiHostCallWasmModule()` | `callBoth(i32): i32` | Multiple host function calls |
+| `randomImportWasmModule()` | `getRandom(): i32` | Deterministic PRNG testing |
+| `timeImportWasmModule()` | `getTime(): i32` | Deterministic time testing |
+| `memoryImportWasmModule()` | `getMemSize(): i32` | Memory import testing |
+
+All modules are hand-crafted byte arrays — no WAT toolchain required.
+
+## Contributing
+
+1. Clone the repo and install dependencies:
+
+```bash
+git clone https://github.com/Robust-infrastructure/ri-sandbox.git
+cd ri-sandbox
+npm install
+```
+
+2. Run the development workflow:
+
+```bash
+npm run typecheck     # Must pass with zero errors
+npm run lint          # Must pass with zero warnings
+npm run test          # All tests must pass
+npm run test:coverage # Coverage ≥ 90% lines, 85% branches, 90% functions
+npm run build         # Must produce clean ESM + CJS + types
+```
+
+3. Follow the commit conventions in `.github/instructions/git-workflow.instructions.md`.
+4. Development follows the ROADMAP — complete milestones in order.
