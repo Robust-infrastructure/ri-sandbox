@@ -631,3 +631,44 @@ Deterministic WASM execution with resource limits, isolation, and snapshot/resto
 - [x] Zero `TODO`/`FIXME` comments in source code
 - [x] Ready for `npm publish` and consumption by external callers
 - [x] Tag `v1.0.0`
+
+---
+
+## Post-M9: Documentation & Release Polish — COMPLETE ✅
+
+> **Status**: COMPLETE  
+> **Tag**: `v1.0.1`  
+> **Completed**: 14 February 2026
+
+### Goal
+
+Add comprehensive standalone documentation (`docs/` directory), bump `package.json` to `1.0.0`, and ensure the library is fully documented for external consumers.
+
+### Tasks
+
+- [x] Bump `package.json` version from `0.1.0` to `1.0.0`
+- [x] Create `docs/reference.md` — exhaustive API reference
+    - §1 Identity: package info, source structure tree, stats table
+    - §2 WasmSandbox Interface: all 7 methods with full signatures, parameters, behavior
+    - §3 Configuration: `SandboxConfig` field table with types, defaults, descriptions
+    - §4 Instance & Status: `SandboxInstance` fields, `SandboxStatus` state machine
+    - §5 Execution Results: `ExecutionResult`, `ExecutionSuccess`, `ExecutionFailure`, `ResourceMetrics`
+    - §6 Host Functions: `HostFunction`, `HostFunctionMap`, `WasmValueType`, auto-injected functions, gas/timeout interception
+    - §7 Snapshot Format: WSNP binary layout (header + memory + state JSON)
+    - §8 Memory Pressure: `getMemoryPressure()`, `advise()`, `PressureRecommendation` union
+    - §9 Error Types: 8 `SandboxErrorCode` variants, factory functions
+    - §10 Result Type: `Result<T, E>`, `ResultOk`, `ResultErr`
+    - §11 Guarantees: 7 determinism guarantees, 5 invariants, performance targets
+    - §12 Deferred to Future: instruction-level gas, wasmtime/wasmer, Rust port
+- [x] Create `docs/architecture.md` — module dependency graph, load pipeline, execute pipeline, import wiring, concurrency model, error strategy, determinism design
+- [x] Create `docs/determinism.md` — deep dive on 7 non-determinism sources, time injection, Mulberry32 PRNG, import isolation, determinism validation, test verification strategies
+- [x] Create `docs/snapshot-format.md` — WSNP binary spec, byte layout, sections, validation rules, status requirements, round-trip guarantee, version history
+- [x] Create `docs/integration-guide.md` — installation, quick start, configuration, host functions, error handling, resource limits, snapshot/restore, memory pressure, browser compatibility
+
+### Done When
+
+- [x] `package.json` version is `1.0.0`
+- [x] `docs/` contains 5 comprehensive documentation files
+- [x] No mentions of internal project names — library-agnostic public docs
+- [x] All doc file links to source code resolve correctly
+- [x] Documentation follows the same structure and quality as ri-event-log docs
