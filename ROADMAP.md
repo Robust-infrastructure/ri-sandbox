@@ -24,8 +24,8 @@ Deterministic WASM execution with resource limits, isolation, and snapshot/resto
 - [x] Create `.eslintrc.cjs` or `eslint.config.js` with @typescript-eslint strict rules
 - [x] Create `.prettierrc` (singleQuote, trailingComma, printWidth 100)
 - [x] Create `src/index.ts` with placeholder export
-- [ ] Create `src/types.ts` with all public type definitions (see M2)
-- [ ] Create `src/errors.ts` with error type union
+- [x] Create `src/types.ts` with all public type definitions (see M2)
+- [x] Create `src/errors.ts` with error type union
 - [x] Create GitHub Actions workflow `.github/workflows/ci.yml` — runs lint, type-check, test on push/PR
 - [x] Create `README.md` — project description, API overview, install instructions, usage example
 - [x] Create `LICENSE` (MIT)
