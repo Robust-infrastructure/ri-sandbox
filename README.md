@@ -2,9 +2,12 @@
 
 Deterministic WASM execution with resource limits, isolation, and snapshot/restore.
 
+[![npm version](https://img.shields.io/npm/v/ri-sandbox.svg)](https://www.npmjs.com/package/ri-sandbox)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 ## Status
 
-**v1.0.0 — Production Ready**
+**v1.0.1 — Production Ready**
 
 | Milestone | Status |
 |-----------|--------|
