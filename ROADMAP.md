@@ -59,7 +59,7 @@ Deterministic WASM execution with resource limits, isolation, and snapshot/resto
     - `maxExecutionMs` (number, default 50) — wall-clock timeout
     - `hostFunctions` (HostFunctionMap, default {}) — injected bridge functions
     - `deterministicSeed` (number, default 0) — PRNG seed for deterministic random
-    - `eventTimestamp` (number, default Date.now() at creation) — injected "current time" (milliseconds since epoch)
+    - `eventTimestamp` (number, no default — caller must provide) — injected "current time" (milliseconds since epoch)
 - [x] Define `HostFunctionMap` type — `Record<string, HostFunction>`
 - [x] Define `HostFunction` interface:
     - `name` (string) — function name as seen from WASM

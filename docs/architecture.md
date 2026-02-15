@@ -135,7 +135,7 @@ Every WASM instance receives an `env` namespace with these imports:
 | `memory` | `WebAssembly.Memory` from instance factory | — |
 | `__get_time` | Time injection (`config.eventTimestamp`) | 1 per call |
 | `__get_random` | Mulberry32 PRNG (`config.deterministicSeed`) | 1 per call |
-| User host functions | `config.hostFunctions` (wrapped in host bridge) | 1 per call |
+| User host functions | `config.hostFunctions` (wrapped in instantiator) | 1 per call |
 
 The import validator (`isolation.ts`) rejects any WASM module that imports from:
 

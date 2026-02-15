@@ -76,7 +76,7 @@ if (result.ok) {
 const metrics = sandbox.getMetrics(instance);
 // metrics.memoryUsedBytes, metrics.memoryLimitBytes, ...
 
-// 5. Clean up
+// 6. Clean up
 sandbox.destroy(instance);
 // instance status is now "destroyed"
 ```
@@ -317,8 +317,8 @@ type MemoryPressureLevel = 'NORMAL' | 'WARNING' | 'PRESSURE' | 'CRITICAL' | 'OOM
 | NORMAL | < 70% |
 | WARNING | 70–85% |
 | PRESSURE | 85–95% |
-| CRITICAL | > 95% |
-| OOM | Should never happen |
+| CRITICAL | ≥ 95% |
+| OOM | ≥ 100% |
 
 ### `Result<T, E>`
 

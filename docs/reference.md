@@ -60,7 +60,7 @@ src/
 
 | Metric | Value |
 |--------|-------|
-| Public types | 17 |
+| Public types | 22 |
 | WasmSandbox methods | 7 |
 | Error codes | 8 |
 | Error factory functions | 8 |
@@ -179,7 +179,7 @@ const DEFAULT_DETERMINISTIC_SEED = 0;
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | `string` | Unique instance identifier (UUID) |
+| `id` | `string` | Unique instance identifier (counter-based: `sandbox-0`, `sandbox-1`, …) |
 | `config` | `Readonly<SandboxConfig>` | Frozen configuration for this instance |
 | `status` | `SandboxStatus` | Current lifecycle state |
 | `metrics` | `ResourceMetrics` | Current resource usage |
@@ -201,15 +201,17 @@ Five possible states forming a lifecycle:
 ```
    create()       load()        execute()
   ──────────► created ──────► loaded ──────► running
-                                 ▲               │
-                                 │  (complete)   │
-                                 └───────────────┘
-                                 │
-                          destroy()
-                                 │
-                                 ▼
-                            destroyed
+                 │               ▲               │
+                 │               │  (complete)   │
+                 │               └───────────────┘
+                 │               │
+                 │        destroy()  ◄── suspended
+                 │               │
+          destroy()              ▼
+                 └──────►  destroyed
 ```
+
+`destroy()` transitions any non-destroyed status (`created`, `loaded`, `running`, `suspended`) to `destroyed`. Idempotent on already-destroyed instances.
 
 ---
 
@@ -297,7 +299,7 @@ These consume 1 gas unit each per call.
 
 ### Error Propagation
 
-If a host function `handler` throws, the error is caught by the host bridge and converted to a `HOST_FUNCTION_ERROR` in the `ExecutionResult`. The WASM execution is trapped — no partial results.
+If a host function `handler` throws, the error is re-thrown by the instantiator wrapper and caught by the executor. It surfaces as a `WASM_TRAP` with `trapKind: 'runtime_error'` in the `ExecutionResult`. The WASM execution is trapped — no partial results.
 
 ### Gas & Timeout Interception
 
@@ -498,7 +500,7 @@ Used internally by the loader, serializer, deserializer, and determinism validat
 
 | Operation | Target | Measured |
 |-----------|--------|----------|
-| `create()` | < 500ms | < 1ms |
+| `create()` | < 5ms | < 1ms |
 | `load()` | < 50ms | < 5ms |
 | `execute()` (simple) | < 50ms | < 0.1ms |
 | `execute()` (fibonacci 20) | < 50ms | < 5ms |
