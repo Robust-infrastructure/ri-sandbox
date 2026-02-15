@@ -522,4 +522,16 @@ Used internally by the loader, serializer, deserializer, and determinism validat
 
 ---
 
+## §13 Non-Goals
+
+These are explicitly **not** the responsibility of this library:
+
+- **WASM module content** — the library executes arbitrary WASM but does not define what modules do. The caller compiles and provides WASM binaries.
+- **Host function definitions** — the caller defines which host functions are available. This library provides the injection mechanism only.
+- **Output rendering** — execution results are returned as raw values. Visual rendering is the caller's domain.
+- **Event storage** — execution results and metrics are returned to the caller, not persisted internally.
+- **Multi-process isolation** — Phase 0 operates single-threaded in-browser. OS-level sandboxing (seccomp, namespaces) is deferred to Phase 2+.
+
+---
+
 *Last verified: 14 February 2026 against source code.*

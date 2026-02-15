@@ -195,4 +195,16 @@ The serializer captures a byte-exact copy of `WebAssembly.Memory`. The deseriali
 
 ---
 
+## Gas Metering Strategy
+
+The v1.0.0 implementation uses **host-call-boundary metering** rather than wasm-metering instruction rewriting:
+
+- Each host function call (`__get_time`, `__get_random`, user-defined) consumes 1 gas unit
+- Pure WASM loops without host calls consume zero gas
+- The wall-clock timeout (`maxExecutionMs`) serves as the backstop for runaway loops
+
+This is a deliberate tradeoff: simpler implementation with correct enforcement via timeout, deferring instruction-level granularity to Phase 1+ when wasm-metering or native runtime metering becomes available.
+
+---
+
 *Last verified: 14 February 2026 against source code.*
